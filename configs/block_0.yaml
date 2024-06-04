@@ -1,0 +1,40 @@
+
+id: '{date}-{filename}'
+
+
+env:
+  RANK:         '0'
+  WORLD_SIZE:   '1'
+  MASTER_ADDR:  'localhost'
+  MASTER_PORT:  '12356'
+
+
+data:
+  batch_size:         4
+  n_seq:              512
+
+
+model:
+  args:
+    pretrain_model:
+      root_dir:       8B-Instruct.local
+      checkpoint:     consolidated.00.pth
+    layer_index:      0
+    train_components:
+      ffn_norm: True
+      feed_forward:
+      - w1
+      attention:
+      - wo
+
+
+trainer:
+  device:           cuda
+  epochs:           2
+
+optim:
+  type:             Adam
+  scheduler:
+    init_lr:        1.e-3
+    decay:          0.9
+    warmup_steps:   200

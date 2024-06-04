@@ -27,6 +27,7 @@ class ModelArgs:
     ffn_dim_multiplier: Optional[float] = None
     norm_eps: float = 1e-5
     rope_theta: float = 500000
+    activation: str = "silu"
 
     max_batch_size: int = 32
     max_seq_len: int = 2048
@@ -198,6 +199,7 @@ class FeedForward(nn.Module):
         hidden_dim: int,
         multiple_of: int,
         ffn_dim_multiplier: Optional[float],
+        activation: str = 'silu',
     ):
         super().__init__()
         hidden_dim = int(2 * hidden_dim / 3)
@@ -216,8 +218,10 @@ class FeedForward(nn.Module):
             dim, hidden_dim, bias=False, gather_output=False, init_method=lambda x: x
         )
 
+        self.act = nn.SiLU() if activation =='silu' else nn.ReLU()
+
     def forward(self, x):
-        return self.w2(F.silu(self.w1(x)) * self.w3(x))
+        return self.w2(self.act(self.w1(x)) * self.w3(x))
 
 
 class TransformerBlock(nn.Module):
@@ -232,6 +236,7 @@ class TransformerBlock(nn.Module):
             hidden_dim=4 * args.dim,
             multiple_of=args.multiple_of,
             ffn_dim_multiplier=args.ffn_dim_multiplier,
+            activation=args.activation,
         )
         self.layer_id = layer_id
         self.attention_norm = RMSNorm(args.dim, eps=args.norm_eps)

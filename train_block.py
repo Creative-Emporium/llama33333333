@@ -20,17 +20,22 @@ from trainer.utils import run_train_epoch, run_validation_epoch, print_performan
 
 
 class NoiseDataset (torch.utils.data.Dataset):
-	def __init__(self, size, shape, std=1, device='cuda'):
+	def __init__(self, size, shape, std=1, device='cuda', seed=None):
 		self.size = size
 		self.shape = shape
 		self.std = std
 		self.device = device
+		self.generator = torch.Generator()
+		self.seed = seed
 
 	def __len__(self):
 		return self.size
 
 	def __getitem__(self, idx):
-		noise = torch.randn(*self.shape) * self.std
+		if idx == 0 and self.seed is not None:
+			self.generator.manual_seed(self.seed)
+
+		noise = torch.randn(*self.shape, generator=self.generator) * self.std
 		return noise.to(self.device)
 
 
@@ -119,12 +124,13 @@ def main ():
 	train_dir = os.path.join('./train', config.id.format(
 		filename=os.path.splitext((os.path.basename(args.config)))[0],
 		date=date.today().strftime('%Y%m%d')))
+	train_dir = train_dir[:-6] if train_dir.endswith('.local') else train_dir
 	os.makedirs(train_dir, exist_ok=True)
 
 	device = config.trainer.device
 
-	train_dataset = NoiseDataset(size=1000, shape=(512, 4096))
-	val_dataset = NoiseDataset(size=100, shape=(512, 4096))
+	train_dataset = NoiseDataset(size=config.data.epoch_size, shape=(512, 4096))
+	val_dataset = NoiseDataset(size=128, shape=(512, 4096), seed=1)
 
 	train_data = torch.utils.data.DataLoader(
 		train_dataset,
@@ -141,7 +147,9 @@ def main ():
 
 	llama, model_args_relu = load_llama(config)
 	teacher = llama.layers[layer_index]
+
 	student = TransformerBlock(layer_index, model_args_relu)
+	student.load_state_dict(teacher.state_dict())
 
 	set_block_grad(teacher)
 	set_block_grad(student, config.model.args.train_components)
@@ -175,9 +183,11 @@ def main ():
 		reportScalars(tb_writer, scalars, report_step)
 
 		acc = val_metrics['accuracy']
-		if epoch > 0 and acc > best_acc:
-			model_name = f'model_{epoch}-acc{acc:.4f}.chkpt'
-			shutil.move(os.path.join(train_dir, 'latest.chkpt'), os.path.join(train_dir, model_name))
+		if acc > best_acc:
+			best_acc = acc
+			if epoch > 0:
+				model_name = f'model_{epoch}-acc{acc:.4f}.chkpt'
+				shutil.move(os.path.join(train_dir, 'latest.chkpt'), os.path.join(train_dir, model_name))
 
 		# training
 		t0 = time.time()

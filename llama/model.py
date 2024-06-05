@@ -160,15 +160,17 @@ class Attention(nn.Module):
 
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
-        '''self.cache_k = self.cache_k.to(xq)
+        # for inference
+        self.cache_k = self.cache_k.to(xq)
         self.cache_v = self.cache_v.to(xq)
 
         self.cache_k[:bsz, start_pos : start_pos + seqlen] = xk
         self.cache_v[:bsz, start_pos : start_pos + seqlen] = xv
 
         keys = self.cache_k[:bsz, : start_pos + seqlen]
-        values = self.cache_v[:bsz, : start_pos + seqlen]'''
-        keys, values = xk, xv
+        values = self.cache_v[:bsz, : start_pos + seqlen]
+        # for training
+        #keys, values = xk, xv
 
         # repeat k/v heads if n_kv_heads < n_heads
         keys = repeat_kv(
@@ -306,3 +308,8 @@ class Transformer(nn.Module):
         h = self.norm(h)
         output = self.output(h).float()
         return output
+
+    def load_relu_block (self, layer_index, state_dict):
+        layer = self.layers[layer_index]
+        layer.feed_forward.act = nn.ReLU()
+        layer.load_state_dict(state_dict)

@@ -37,12 +37,15 @@ def main(
         max_batch_size=max_batch_size,
     )
 
+    #l0_dict = torch.load('./train/20240604-block_0-wo+fn+w1+w2+w3-lr1e-3/model_10-acc5.5827.chkpt', map_location='cpu')
+    #generator.model.load_relu_block(0, l0_dict['model'])
+
     random_gen = torch.Generator(device='cuda')
     if seed >= 0:
         random_gen.manual_seed(seed)
 
     dialogs: List[Dialog] = [
-        [{"role": "user", "content": "what is the recipe of mayonnaise?"}],
+#        [{"role": "user", "content": "what is the recipe of mayonnaise?"}],
 #        [
 #            {"role": "user", "content": "I am going to Paris, what should I see?"},
 #            {
@@ -69,6 +72,10 @@ def main(
 #            },
 #            {"role": "user", "content": "How to go from Beijing to NY?"},
 #        ],
+        [
+            {"role": "system", "content": "Assistant is designed to be able to assist with a wide range of tasks, from answering simple questions to providing in-depth explanations and discussions on a wide range of topics. As a language model, Assistant is able to generate human-like text based on the input it receives, allowing it to engage in natural-sounding conversations and provide responses that are coherent and relevant to the topic at hand."},
+            {"role": "user", "content": "What is the capital city of France?"},
+        ],
     ]
     results = generator.chat_completion(
         dialogs,

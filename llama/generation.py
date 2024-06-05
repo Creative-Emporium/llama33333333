@@ -122,6 +122,7 @@ class Llama:
         top_p: float = 0.9,
         logprobs: bool = False,
         echo: bool = False,
+        generator=None,
     ) -> Tuple[List[List[int]], Optional[List[List[float]]]]:
         """
         Generate text sequences based on provided prompts using the language generation model.
@@ -176,7 +177,7 @@ class Llama:
             logits = self.model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
             if temperature > 0:
                 probs = torch.softmax(logits[:, -1] / temperature, dim=-1)
-                next_token = sample_top_p(probs, top_p)
+                next_token = sample_top_p(probs, top_p, generator)
             else:
                 next_token = torch.argmax(logits[:, -1], dim=-1)
 
@@ -230,6 +231,7 @@ class Llama:
         max_gen_len: Optional[int] = None,
         logprobs: bool = False,
         echo: bool = False,
+        generator=None,
     ) -> List[CompletionPrediction]:
         """
         Perform text completion for a list of prompts using the language generation model.
@@ -261,6 +263,7 @@ class Llama:
             top_p=top_p,
             logprobs=logprobs,
             echo=echo,
+            generator=generator,
         )
         if logprobs:
             return [
@@ -280,6 +283,7 @@ class Llama:
         top_p: float = 0.9,
         max_gen_len: Optional[int] = None,
         logprobs: bool = False,
+        generator=None,
     ) -> List[ChatPrediction]:
         """
         Generate assistant responses for a list of conversational dialogs using the language generation model.
@@ -312,6 +316,7 @@ class Llama:
             temperature=temperature,
             top_p=top_p,
             logprobs=logprobs,
+            generator=generator,
         )
         if logprobs:
             return [
@@ -336,7 +341,7 @@ class Llama:
         ]
 
 
-def sample_top_p(probs, p):
+def sample_top_p(probs, p, generator):
     """
     Perform top-p (nucleus) sampling on a probability distribution.
 
@@ -356,6 +361,6 @@ def sample_top_p(probs, p):
     mask = probs_sum - probs_sort > p
     probs_sort[mask] = 0.0
     probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
-    next_token = torch.multinomial(probs_sort, num_samples=1)
+    next_token = torch.multinomial(probs_sort, num_samples=1, generator=generator)
     next_token = torch.gather(probs_idx, -1, next_token)
     return next_token
